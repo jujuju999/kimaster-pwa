@@ -1,19 +1,23 @@
-const CACHE = 'kimastery-v1';
+const CACHE = 'kimastery-v2';
+const BASE = '/kimaster-pwa';
 const ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/css/style.css',
-  '/js/data.js',
-  '/js/state.js',
-  '/js/ui.js',
-  '/js/app.js',
-  'https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Syne:wght@700;800&display=swap'
+  BASE + '/',
+  BASE + '/index.html',
+  BASE + '/manifest.json',
+  BASE + '/css/style.css',
+  BASE + '/js/data.js',
+  BASE + '/js/state.js',
+  BASE + '/js/ui.js',
+  BASE + '/js/app.js',
+  BASE + '/icons/icon-192.png',
+  BASE + '/icons/icon-512.png'
 ];
 
 self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting())
+    caches.open(CACHE)
+      .then(c => c.addAll(ASSETS))
+      .then(() => self.skipWaiting())
   );
 });
 
@@ -27,6 +31,11 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request).catch(() => caches.match('/index.html')))
+    caches.match(e.request).then(cached => {
+      if (cached) return cached;
+      return fetch(e.request).catch(() =>
+        caches.match(BASE + '/index.html')
+      );
+    })
   );
 });
