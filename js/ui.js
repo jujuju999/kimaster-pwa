@@ -53,7 +53,8 @@ const UI = (() => {
     document.getElementById('h-stat-done').textContent = totalDone + '/' + totalAll;
 
     // streak card
-    document.getElementById('h-streak-num').textContent = s.streak;
+    const streakNum = document.getElementById('h-streak-num');
+    if (streakNum) streakNum.innerHTML = s.streak + (s.shields > 0 ? ' <span style="font-size:18px;">🛡️</span>' : '');
     document.getElementById('h-streak-sub').textContent = s.streak > 0
       ? `${s.streak} Tag${s.streak !== 1 ? 'e' : ''} in Folge — weiter so!`
       : 'Starte heute deinen Streak!';
@@ -266,6 +267,17 @@ const UI = (() => {
     document.getElementById('p-level').textContent = `Level ${lv.level} · ${lv.title}`;
     document.getElementById('p-xp').textContent = `${s.xp} XP gesamt`;
 
+    // shields section
+    const shieldEl = document.getElementById('p-shields-count');
+    if (shieldEl) shieldEl.textContent = s.shields;
+    const shieldXP = document.getElementById('p-shields-xp');
+    if (shieldXP) shieldXP.textContent = s.xp;
+    const buyBtn = document.getElementById('p-shield-buy');
+    if (buyBtn) {
+      buyBtn.disabled = s.shields >= 3 || s.xp < 100;
+      buyBtn.textContent = s.shields >= 3 ? '🛡️ Maximum (3/3)' : `🛡️ Streak-Schutz kaufen — 100 XP`;
+    }
+
     const grid = document.getElementById('p-achievements');
     grid.innerHTML = DATA.achievements.map(ach => {
       const unlocked = s.achievements.includes(ach.id);
@@ -296,5 +308,15 @@ const UI = (() => {
     return `rgba(${r},${g},${b},${alpha})`;
   }
 
-  return { renderHome, renderWeeks, renderQuiz, renderProfile, switchWeek, toggleDay, answerQ, xpPop, confetti };
+  function showToast(msg, emoji = '🛡️') {
+    const el = document.getElementById('achievement-toast');
+    if (!el) return;
+    el.querySelector('.ach-icon').textContent = emoji;
+    el.querySelector('.ach-title').textContent = msg;
+    el.querySelector('.ach-desc').textContent = '';
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 4000);
+  }
+
+  return { renderHome, renderWeeks, renderQuiz, renderProfile, switchWeek, toggleDay, answerQ, xpPop, confetti, showToast };
 })();

@@ -44,6 +44,9 @@ const App = (() => {
   function startApp() {
     navigate('home');
     setupPWAInstall();
+    if (State.consumeShieldToast()) {
+      setTimeout(() => UI.showToast('Dein Streak wurde durch einen Schutz gerettet!', '🛡️'), 800);
+    }
   }
 
   function setupPWAInstall() {

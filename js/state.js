@@ -11,15 +11,20 @@ const State = (() => {
     quizPoints: 0,
     currentWeek: 0,
     theme: 'dark',
-    username: 'Lernender'
+    username: 'Lernender',
+    shields: 1,
+    streak_protected: false
   };
 
   let state = { ...defaults };
+  let _shieldSaved = false;
 
   function load() {
     try {
       const saved = localStorage.getItem(KEY);
       if (saved) state = { ...defaults, ...JSON.parse(saved) };
+      // Grant 1 free shield to existing users upgrading
+      if (state.shields === undefined) state.shields = 1;
       checkStreak();
     } catch(e) { state = { ...defaults }; }
   }
@@ -36,11 +41,34 @@ const State = (() => {
     const yesterday = new Date(Date.now() - 864e5).toDateString();
     if (last === yesterday) {
       state.streak += 1;
+      state.streak_protected = false;
     } else {
-      state.streak = 0;
+      if (state.shields > 0) {
+        state.shields -= 1;
+        state.streak_protected = true;
+        _shieldSaved = true;
+      } else {
+        state.streak = 0;
+        state.streak_protected = false;
+      }
     }
     state.lastLogin = today;
     save();
+  }
+
+  function buyShield() {
+    if (state.shields >= 3) return { error: 'max' };
+    if (state.xp < 100) return { error: 'xp' };
+    state.xp -= 100;
+    state.shields += 1;
+    save();
+    return { ok: true };
+  }
+
+  function consumeShieldToast() {
+    const v = _shieldSaved;
+    _shieldSaved = false;
+    return v;
   }
 
   function isTaskDone(id) { return state.done.includes(id); }
@@ -140,7 +168,7 @@ const State = (() => {
   function getAll() { return { ...state }; }
 
   load();
-  return { isTaskDone, toggleTask, getLevel, getTodayTasks, getDoneCount, getTotalCount, answerQuiz, resetQuiz, setUsername, setCurrentWeek, getAll, save, checkAchievements };
+  return { isTaskDone, toggleTask, getLevel, getTodayTasks, getDoneCount, getTotalCount, answerQuiz, resetQuiz, setUsername, setCurrentWeek, getAll, save, checkAchievements, buyShield, consumeShieldToast };
 })();
 
 function showAchievement(ach) {
