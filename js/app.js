@@ -6,6 +6,7 @@ const App = (() => {
     home:    { el: 'screen-home',    nav: 'nav-home',    render: () => UI.renderHome() },
     weeks:   { el: 'screen-weeks',   nav: 'nav-weeks',   render: () => UI.renderWeeks() },
     quiz:    { el: 'screen-quiz',    nav: 'nav-quiz',    render: () => UI.renderQuiz() },
+    blitz:   { el: 'screen-blitz',   nav: 'nav-blitz',   render: () => UI.renderBlitz() },
     profile: { el: 'screen-profile', nav: 'nav-profile', render: () => UI.renderProfile() }
   };
 

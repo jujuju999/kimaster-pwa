@@ -18,7 +18,13 @@ const State = (() => {
     todayXP: 0,
     todayDate: '',
     loginHistory: [],
-    completedWeeks: []
+    completedWeeks: [],
+    blitzDate: '',
+    blitzQuestionIds: [],
+    blitzAnswers: {},
+    blitzScore: 0,
+    blitzXP: 0,
+    blitzCompleted: false
   };
 
   let state = { ...defaults };
@@ -205,13 +211,73 @@ const State = (() => {
     save();
   }
 
+  function initBlitz() {
+    const today = new Date().toISOString().split('T')[0];
+    if (state.blitzDate !== today) {
+      const pool = DATA.blitzQuestions.slice();
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+      state.blitzDate = today;
+      state.blitzQuestionIds = pool.slice(0, 3).map(q => q.id);
+      state.blitzAnswers = {};
+      state.blitzScore = 0;
+      state.blitzXP = 0;
+      state.blitzCompleted = false;
+      save();
+    }
+    return getBlitz();
+  }
+
+  function getBlitz() {
+    const questions = state.blitzQuestionIds
+      .map(id => DATA.blitzQuestions.find(q => q.id === id))
+      .filter(Boolean);
+    return {
+      questions,
+      answers: { ...state.blitzAnswers },
+      score: state.blitzScore,
+      xp: state.blitzXP,
+      completed: state.blitzCompleted
+    };
+  }
+
+  function answerBlitz(qid, answerIdx) {
+    if (state.blitzAnswers[qid] !== undefined) return null;
+    const q = DATA.blitzQuestions.find(q => q.id === qid);
+    if (!q) return null;
+    const correct = answerIdx === q.correct;
+    state.blitzAnswers[qid] = answerIdx;
+    if (correct) {
+      state.blitzScore++;
+      state.blitzXP += 15;
+      state.xp += 15;
+      state.todayXP += 15;
+    }
+    save();
+    return { correct, explanation: q.exp, xpEarned: correct ? 15 : 0 };
+  }
+
+  function completeBlitz() {
+    if (state.blitzCompleted) return { score: state.blitzScore, xp: state.blitzXP };
+    state.blitzCompleted = true;
+    if (state.blitzScore === 3) {
+      state.xp += 20;
+      state.todayXP += 20;
+      state.blitzXP += 20;
+    }
+    save();
+    return { score: state.blitzScore, xp: state.blitzXP };
+  }
+
   function setUsername(name) { state.username = name; save(); }
   function setCurrentWeek(w) { state.currentWeek = w; save(); }
 
   function getAll() { return { ...state }; }
 
   load();
-  return { isTaskDone, toggleTask, getLevel, getTodayTasks, getDoneCount, getTotalCount, answerQuiz, resetQuiz, setUsername, setCurrentWeek, getAll, save, checkAchievements, buyShield, consumeShieldToast, setDailyGoal, getTodayProgress, markWeekComplete, syncCompletedWeeks };
+  return { isTaskDone, toggleTask, getLevel, getTodayTasks, getDoneCount, getTotalCount, answerQuiz, resetQuiz, setUsername, setCurrentWeek, getAll, save, checkAchievements, buyShield, consumeShieldToast, setDailyGoal, getTodayProgress, markWeekComplete, syncCompletedWeeks, initBlitz, getBlitz, answerBlitz, completeBlitz };
 })();
 
 function showAchievement(ach) {

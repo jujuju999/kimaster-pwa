@@ -74,6 +74,7 @@ const UI = (() => {
 
     // today tasks
     renderTodayCard();
+    renderBlitzHomeCard();
   }
 
   function renderTodayCard() {
@@ -434,5 +435,184 @@ const UI = (() => {
     setTimeout(() => el.classList.remove('show'), 4000);
   }
 
-  return { renderHome, renderWeeks, renderQuiz, renderProfile, switchWeek, toggleDay, answerQ, xpPop, confetti, showToast, showMilestone, updateGoalRing };
+  // ─── WISSENS-BLITZ ───
+  let _blitzTimer = null;
+  let _blitzSeconds = 60;
+  let _blitzCurrentQ = 0;
+
+  function renderBlitz() {
+    const blitz = State.initBlitz();
+    _blitzCurrentQ = Object.keys(blitz.answers).length;
+    _blitzSeconds = 60;
+    clearInterval(_blitzTimer);
+
+    const wrap = document.getElementById('blitz-wrap');
+    if (!wrap) return;
+
+    if (blitz.completed) {
+      _renderBlitzResult(blitz);
+      return;
+    }
+
+    _renderBlitzQuestion(blitz);
+
+    if (_blitzCurrentQ < 3) {
+      _blitzTimer = setInterval(() => {
+        _blitzSeconds--;
+        const bar = document.getElementById('blitz-timer-bar');
+        const num = document.getElementById('blitz-timer-num');
+        if (bar) {
+          bar.style.width = Math.max(0, (_blitzSeconds / 60) * 100) + '%';
+          bar.style.background = _blitzSeconds <= 10 ? 'var(--red)' : 'var(--green)';
+        }
+        if (num) {
+          num.textContent = _blitzSeconds;
+          num.style.color = _blitzSeconds <= 10 ? 'var(--red)' : 'var(--green)';
+        }
+        if (_blitzSeconds <= 0) {
+          clearInterval(_blitzTimer);
+          _blitzTimeUp();
+        }
+      }, 1000);
+    }
+  }
+
+  function _renderBlitzQuestion(blitz) {
+    const wrap = document.getElementById('blitz-wrap');
+    if (!wrap) return;
+    const qi = _blitzCurrentQ;
+    if (qi >= blitz.questions.length) {
+      clearInterval(_blitzTimer);
+      State.completeBlitz();
+      _renderBlitzResult(State.getBlitz());
+      return;
+    }
+    const q = blitz.questions[qi];
+    const answered = blitz.answers[q.id];
+    const hasAnswer = answered !== undefined;
+
+    wrap.innerHTML = `
+      <div class="blitz-timer-wrap">
+        <div class="blitz-timer-track">
+          <div class="blitz-timer-bar" id="blitz-timer-bar" style="width:${(_blitzSeconds/60)*100}%"></div>
+        </div>
+        <span class="blitz-timer-num" id="blitz-timer-num">${_blitzSeconds}</span>
+      </div>
+      <div class="blitz-progress">
+        ${[0,1,2].map(i => `<div class="blitz-dot ${i < qi ? 'done' : i === qi ? 'active' : ''}"></div>`).join('')}
+        <span style="font-size:12px;color:var(--text3);font-weight:700;margin-left:8px;">Frage ${qi+1} / 3</span>
+      </div>
+      <div class="quiz-card" style="margin:0;">
+        <div class="quiz-q">${q.q}</div>
+        <div class="quiz-opts" id="blitz-opts">
+          ${q.opts.map((opt, oi) => {
+            let cls = '';
+            if (hasAnswer) {
+              if (oi === q.correct) cls = 'correct';
+              else if (oi === answered) cls = 'wrong';
+            }
+            return `<button class="quiz-opt ${cls}" ${hasAnswer ? 'disabled' : ''} onclick="UI.blitzAnswer('${q.id}',${oi},this)">${opt}</button>`;
+          }).join('')}
+        </div>
+        ${hasAnswer ? `
+          <div class="quiz-feedback ${answered === q.correct ? 'ok' : 'nok'}">
+            ${answered === q.correct ? '✓ Richtig! ' : '✗ Falsch. '}${q.exp}
+          </div>
+          <button class="btn btn-green" style="margin-top:12px;" onclick="UI.blitzNext()">
+            ${qi < 2 ? 'Weiter →' : 'Ergebnis sehen 🏁'}
+          </button>` : ''}
+      </div>`;
+  }
+
+  function blitzAnswer(qid, oi, btn) {
+    const result = State.answerBlitz(qid, oi);
+    if (!result) return;
+    clearInterval(_blitzTimer);
+    const blitz = State.getBlitz();
+    _blitzCurrentQ = Object.keys(blitz.answers).length;
+    _renderBlitzQuestion(blitz);
+    if (result.correct && result.xpEarned > 0) {
+      const rect = btn.getBoundingClientRect();
+      xpPop(result.xpEarned, rect.right - 60, rect.top);
+    }
+    updateSidebar();
+    // Restart timer for remaining questions
+    if (_blitzCurrentQ < 3 && !blitz.completed) {
+      _blitzTimer = setInterval(() => {
+        _blitzSeconds--;
+        const bar = document.getElementById('blitz-timer-bar');
+        const num = document.getElementById('blitz-timer-num');
+        if (bar) { bar.style.width = Math.max(0, (_blitzSeconds / 60) * 100) + '%'; bar.style.background = _blitzSeconds <= 10 ? 'var(--red)' : 'var(--green)'; }
+        if (num) { num.textContent = _blitzSeconds; num.style.color = _blitzSeconds <= 10 ? 'var(--red)' : 'var(--green)'; }
+        if (_blitzSeconds <= 0) { clearInterval(_blitzTimer); _blitzTimeUp(); }
+      }, 1000);
+    }
+  }
+
+  function blitzNext() {
+    const blitz = State.getBlitz();
+    _blitzCurrentQ = Object.keys(blitz.answers).length;
+    if (_blitzCurrentQ >= 3) {
+      clearInterval(_blitzTimer);
+      State.completeBlitz();
+      _renderBlitzResult(State.getBlitz());
+      updateSidebar();
+      renderHome();
+    } else {
+      _renderBlitzQuestion(blitz);
+    }
+  }
+
+  function _blitzTimeUp() {
+    State.completeBlitz();
+    _renderBlitzResult(State.getBlitz());
+    updateSidebar();
+    renderHome();
+  }
+
+  function _renderBlitzResult(blitz) {
+    clearInterval(_blitzTimer);
+    const wrap = document.getElementById('blitz-wrap');
+    if (!wrap) return;
+    const medals = ['😢', '🌟', '🔥', '⚡'];
+    const medal = medals[blitz.score];
+    const bonus = blitz.score === 3 ? '+20 XP Bonus!' : '';
+    wrap.innerHTML = `
+      <div style="text-align:center;padding:32px 20px;">
+        <div style="font-size:72px;margin-bottom:12px;">${medal}</div>
+        <div style="font-size:24px;font-weight:900;color:var(--text);margin-bottom:6px;">
+          ${blitz.score} / 3 richtig
+        </div>
+        <div style="font-size:14px;color:var(--text3);margin-bottom:4px;">
+          ${blitz.score === 3 ? 'Perfekt! Alle Fragen richtig!' : blitz.score === 2 ? 'Sehr gut — fast perfekt!' : blitz.score === 1 ? 'Nicht schlecht, morgen wieder!' : 'Morgen läuft es besser!'}
+        </div>
+        ${bonus ? `<div style="font-size:13px;color:var(--green);font-weight:800;margin-bottom:4px;">${bonus}</div>` : ''}
+        <div style="font-size:28px;font-weight:900;color:var(--green);margin:16px 0;">+${blitz.xp} XP</div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:24px;">Neuer Blitz morgen früh 🌅</div>
+        <button class="btn btn-green" onclick="App.navigate('home')" style="font-size:15px;">
+          Zurück zum Home
+        </button>
+      </div>`;
+  }
+
+  function renderBlitzHomeCard() {
+    const card = document.getElementById('blitz-home-card');
+    if (!card) return;
+    const blitz = State.getBlitz();
+    const today = new Date().toISOString().split('T')[0];
+    const s = State.getAll();
+    const isToday = s.blitzDate === today;
+    const done = isToday && blitz.completed;
+    card.innerHTML = `
+      <div class="blitz-home-inner ${done ? 'blitz-done' : ''}" onclick="${done ? '' : 'App.navigate(\'blitz\')'}" style="${done ? '' : 'cursor:pointer;'}">
+        <div class="blitz-home-icon">${done ? '✅' : '⚡'}</div>
+        <div class="blitz-home-body">
+          <div class="blitz-home-title">${done ? 'Wissens-Blitz erledigt!' : 'Wissens-Blitz'}</div>
+          <div class="blitz-home-sub">${done ? `${blitz.score}/3 richtig · +${blitz.xp} XP verdient` : '3 Fragen · 60 Sekunden · täglich neu'}</div>
+        </div>
+        ${done ? '' : '<div class="blitz-home-arrow">›</div>'}
+      </div>`;
+  }
+
+  return { renderHome, renderWeeks, renderQuiz, renderProfile, switchWeek, toggleDay, answerQ, xpPop, confetti, showToast, showMilestone, updateGoalRing, renderBlitz, blitzAnswer, blitzNext, renderBlitzHomeCard };
 })();
