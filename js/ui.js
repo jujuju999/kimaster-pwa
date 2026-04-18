@@ -614,5 +614,242 @@ const UI = (() => {
       </div>`;
   }
 
-  return { renderHome, renderWeeks, renderQuiz, renderProfile, switchWeek, toggleDay, answerQ, xpPop, confetti, showToast, showMilestone, updateGoalRing, renderBlitz, blitzAnswer, blitzNext, renderBlitzHomeCard };
+  // ─── SHARE CARD ───
+  function _rrect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+
+  function _buildCanvas() {
+    const s = State.getAll();
+    const lv = State.getLevel();
+    const W = 1080, H = 1080;
+    const canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d');
+
+    // ── Background ──
+    const bg = ctx.createLinearGradient(0, 0, W, H);
+    bg.addColorStop(0, '#080f09');
+    bg.addColorStop(1, '#0c1810');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    // Green glow top-right
+    const g1 = ctx.createRadialGradient(W * 0.85, H * 0.15, 0, W * 0.85, H * 0.15, 380);
+    g1.addColorStop(0, 'rgba(57,217,138,0.18)');
+    g1.addColorStop(1, 'rgba(57,217,138,0)');
+    ctx.fillStyle = g1; ctx.fillRect(0, 0, W, H);
+
+    // Orange glow bottom-left
+    const g2 = ctx.createRadialGradient(W * 0.15, H * 0.85, 0, W * 0.15, H * 0.85, 280);
+    g2.addColorStop(0, 'rgba(245,158,11,0.12)');
+    g2.addColorStop(1, 'rgba(245,158,11,0)');
+    ctx.fillStyle = g2; ctx.fillRect(0, 0, W, H);
+
+    // ── Outer border ──
+    ctx.strokeStyle = 'rgba(57,217,138,0.35)';
+    ctx.lineWidth = 2;
+    _rrect(ctx, 36, 36, W - 72, H - 72, 40);
+    ctx.stroke();
+
+    // ── Top badge ──
+    ctx.fillStyle = 'rgba(57,217,138,0.12)';
+    _rrect(ctx, 80, 80, 260, 56, 16);
+    ctx.fill();
+    ctx.fillStyle = '#39d98a';
+    ctx.font = 'bold 28px "Nunito", "Arial", sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('🤖  KI MASTERY', 106, 116);
+
+    // ── Name ──
+    ctx.fillStyle = '#f8faf9';
+    ctx.font = 'bold 88px "Nunito", "Arial Black", sans-serif';
+    ctx.textAlign = 'left';
+    // Clamp name to fit
+    let name = s.username;
+    while (ctx.measureText(name).width > W - 160 && name.length > 1) name = name.slice(0, -1) + '…';
+    ctx.fillText(name, 80, 250);
+
+    // ── Level pill ──
+    const levelText = `Level ${lv.level}  ·  ${lv.title}`;
+    ctx.font = '600 36px "Nunito", "Arial", sans-serif';
+    const lw = ctx.measureText(levelText).width;
+    ctx.fillStyle = 'rgba(57,217,138,0.15)';
+    _rrect(ctx, 78, 268, lw + 32, 48, 12);
+    ctx.fill();
+    ctx.fillStyle = '#39d98a';
+    ctx.fillText(levelText, 94, 302);
+
+    // ── XP progress bar ──
+    const barX = 80, barY = 345, barH = 14, barW = W - 160;
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    _rrect(ctx, barX, barY, barW, barH, 7);
+    ctx.fill();
+    const fillW = Math.max(0, Math.round(barW * lv.progress));
+    if (fillW > 0) {
+      const barGrad = ctx.createLinearGradient(barX, 0, barX + fillW, 0);
+      barGrad.addColorStop(0, '#39d98a');
+      barGrad.addColorStop(1, '#22c55e');
+      ctx.fillStyle = barGrad;
+      _rrect(ctx, barX, barY, fillW, barH, 7);
+      ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.font = '600 26px "Nunito", "Arial", sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`${s.xp} XP`, barX, barY + 46);
+    if (lv.next) {
+      ctx.textAlign = 'right';
+      ctx.fillText(`${lv.next.minXP} XP`, barX + barW, barY + 46);
+    }
+
+    // ── Divider ──
+    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(80, 430); ctx.lineTo(W - 80, 430); ctx.stroke();
+
+    // ── Streak block (left half) ──
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#f59e0b';
+    ctx.font = `bold ${s.streak >= 100 ? 130 : 160}px "Nunito", "Arial Black", sans-serif`;
+    ctx.fillText(String(s.streak), 270, 620);
+    ctx.font = '800 36px "Nunito", "Arial", sans-serif';
+    ctx.fillStyle = 'rgba(245,158,11,0.9)';
+    ctx.fillText('🔥 STREAK', 270, 680);
+    ctx.font = '600 28px "Nunito", "Arial", sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.fillText(`${s.streak === 1 ? 'Tag' : 'Tage'} in Folge`, 270, 720);
+
+    // ── Vertical divider ──
+    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(540, 450); ctx.lineTo(540, 740); ctx.stroke();
+
+    // ── Tasks block (right half) ──
+    const totalDone = DATA.weeks.reduce((acc, w) =>
+      acc + w.days.reduce((a2, d) => a2 + d.tasks.filter(t => s.done.includes(t.id)).length, 0), 0);
+    const totalAll = DATA.weeks.reduce((acc, w) =>
+      acc + w.days.reduce((a2, d) => a2 + d.tasks.length, 0), 0);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#a78bfa';
+    ctx.font = `bold ${totalDone >= 100 ? 130 : 160}px "Nunito", "Arial Black", sans-serif`;
+    ctx.fillText(String(totalDone), 810, 620);
+    ctx.font = '800 36px "Nunito", "Arial", sans-serif';
+    ctx.fillStyle = 'rgba(167,139,250,0.9)';
+    ctx.fillText('✅ AUFGABEN', 810, 680);
+    ctx.font = '600 28px "Nunito", "Arial", sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.fillText(`von ${totalAll} erledigt`, 810, 720);
+
+    // ── Divider ──
+    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(80, 755); ctx.lineTo(W - 80, 755); ctx.stroke();
+
+    // ── Main tagline ──
+    const daysActive = Math.min((s.loginHistory ? s.loginHistory.length : 0) + 1, 28);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#f8faf9';
+    ctx.font = 'bold 62px "Nunito", "Arial Black", sans-serif';
+    ctx.fillText('Ich lerne KI mit Claude', W / 2, 845);
+
+    // ── Day counter ──
+    const dayGrad = ctx.createLinearGradient(W * 0.3, 0, W * 0.7, 0);
+    dayGrad.addColorStop(0, '#39d98a');
+    dayGrad.addColorStop(1, '#22c55e');
+    ctx.fillStyle = dayGrad;
+    ctx.font = 'bold 48px "Nunito", "Arial", sans-serif';
+    ctx.fillText(`Tag ${daysActive} von 28`, W / 2, 910);
+
+    // ── Bottom URL ──
+    ctx.fillStyle = 'rgba(57,217,138,0.4)';
+    ctx.font = '600 28px "Nunito", "Arial", sans-serif';
+    ctx.fillText('jujuju999.github.io/kimaster-pwa', W / 2, 985);
+
+    return canvas;
+  }
+
+  function shareProgress() {
+    const btn = document.getElementById('share-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Generiere…'; }
+
+    document.fonts.ready.then(() => {
+      const canvas = _buildCanvas();
+      canvas.toBlob(blob => {
+        if (btn) { btn.disabled = false; btn.textContent = '📤 Fortschritt teilen'; }
+        _showShareModal(canvas, blob);
+      }, 'image/png');
+    });
+  }
+
+  function _showShareModal(canvas, blob) {
+    const existing = document.getElementById('share-modal');
+    if (existing) existing.remove();
+
+    const dataURL = canvas.toDataURL('image/png');
+    const modal = document.createElement('div');
+    modal.id = 'share-modal';
+    modal.className = 'share-modal';
+    modal.innerHTML = `
+      <div class="share-modal-inner">
+        <div class="share-modal-header">
+          <span style="font-size:15px;font-weight:800;color:var(--text);">Deine Fortschritts-Karte</span>
+          <button onclick="document.getElementById('share-modal').remove()" class="share-close">✕</button>
+        </div>
+        <img src="${dataURL}" class="share-preview" alt="Fortschritts-Karte">
+        <div class="share-actions">
+          <button class="btn btn-green" id="share-native-btn" style="flex:1;">
+            📤 Teilen
+          </button>
+          <button class="btn" id="share-dl-btn" style="flex:1;">
+            ⬇️ Speichern
+          </button>
+        </div>
+        <div style="font-size:11px;color:var(--text3);text-align:center;padding:8px 0 0;">
+          Halte das Bild gedrückt oder tippe Speichern um es in deine Galerie zu laden
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+
+    // Native share
+    document.getElementById('share-native-btn').addEventListener('click', () => {
+      const file = new File([blob], 'ki-mastery-fortschritt.png', { type: 'image/png' });
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({
+          title: 'KI Mastery — mein Fortschritt',
+          text: `Ich lerne KI mit Claude! 🤖`,
+          files: [file]
+        }).catch(() => {});
+      } else {
+        _downloadBlob(blob);
+      }
+    });
+
+    // Download fallback
+    document.getElementById('share-dl-btn').addEventListener('click', () => _downloadBlob(blob));
+
+    // Close on backdrop
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  }
+
+  function _downloadBlob(blob) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'ki-mastery-fortschritt.png';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+
+  return { renderHome, renderWeeks, renderQuiz, renderProfile, switchWeek, toggleDay, answerQ, xpPop, confetti, showToast, showMilestone, updateGoalRing, renderBlitz, blitzAnswer, blitzNext, renderBlitzHomeCard, shareProgress };
 })();
