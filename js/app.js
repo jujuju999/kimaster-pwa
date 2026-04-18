@@ -1,4 +1,3 @@
-// ─── APP CONTROLLER ───
 const App = (() => {
   let currentScreen = 'home';
   let deferredInstall = null;
@@ -13,9 +12,8 @@ const App = (() => {
   function navigate(to) {
     if (!screens[to]) return;
     Object.keys(screens).forEach(key => {
-      const s = screens[key];
-      document.getElementById(s.el)?.classList.remove('active');
-      document.getElementById(s.nav)?.classList.remove('active');
+      document.getElementById(screens[key].el)?.classList.remove('active');
+      document.getElementById(screens[key].nav)?.classList.remove('active');
     });
     document.getElementById(screens[to].el)?.classList.add('active');
     document.getElementById(screens[to].nav)?.classList.add('active');
@@ -69,23 +67,26 @@ const App = (() => {
   }
 
   function init() {
-    // Register Service Worker
+    // Service Worker — korrekter Pfad für GitHub Pages
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(() => {});
+      navigator.serviceWorker.register('/kimaster-pwa/sw.js', {
+        scope: '/kimaster-pwa/'
+      }).then(reg => {
+        console.log('SW registered:', reg.scope);
+      }).catch(err => {
+        console.log('SW error:', err);
+      });
     }
 
-    // Nav buttons
     document.querySelectorAll('[data-nav]').forEach(btn => {
       btn.addEventListener('click', () => navigate(btn.dataset.nav));
     });
 
-    // Onboarding
     document.getElementById('onboard-start')?.addEventListener('click', finishOnboarding);
     document.getElementById('onboard-name')?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') finishOnboarding();
     });
 
-    // Install btn
     document.getElementById('install-btn')?.addEventListener('click', installPWA);
 
     checkOnboarding();
