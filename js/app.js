@@ -33,15 +33,13 @@ const App = (() => {
   }
 
   function finishOnboarding() {
-    const name = document.getElementById('onboard-name').value.trim();
-    if (!name) { document.getElementById('onboard-name').focus(); return; }
-    State.setUsername(name);
     document.getElementById('screen-onboard').style.display = 'none';
     document.getElementById('main-app').style.display = 'block';
     startApp();
   }
 
   function startApp() {
+    State.syncCompletedWeeks();
     navigate('home');
     setupPWAInstall();
     if (State.consumeShieldToast()) {
@@ -85,9 +83,11 @@ const App = (() => {
       btn.addEventListener('click', () => navigate(btn.dataset.nav));
     });
 
+    document.getElementById('onboard-next-1')?.addEventListener('click', obNext1);
+    document.getElementById('onboard-next-2')?.addEventListener('click', obNext2);
     document.getElementById('onboard-start')?.addEventListener('click', finishOnboarding);
     document.getElementById('onboard-name')?.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') finishOnboarding();
+      if (e.key === 'Enter') obNext1();
     });
 
     document.getElementById('install-btn')?.addEventListener('click', installPWA);

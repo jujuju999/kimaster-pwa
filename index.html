@@ -22,13 +22,51 @@
 <!-- ─── ONBOARDING ─── -->
 <div id="screen-onboard" style="display:none;">
   <div class="onboard-wrap">
-    <span class="onboard-emoji">🤖</span>
-    <h1 class="onboard-title">KI Mastery</h1>
-    <p class="onboard-sub">Dein persönliches KI-Lernprogramm.<br>Lerne Claude — verdiene XP — baue echte Skills.</p>
-    <input id="onboard-name" class="onboard-input" type="text" placeholder="Wie heißt du?" autocomplete="off" maxlength="20">
-    <button id="onboard-start" class="btn btn-green" style="font-size:16px;padding:15px;">
-      Jetzt starten 🚀
-    </button>
+
+    <!-- Step 1: Name -->
+    <div class="onboard-step active" id="ob-step-1">
+      <span class="onboard-emoji">🤖</span>
+      <h1 class="onboard-title">KI Mastery</h1>
+      <p class="onboard-sub">Dein persönliches KI-Lernprogramm.<br>Lerne Claude — verdiene XP — baue echte Skills.</p>
+      <input id="onboard-name" class="onboard-input" type="text" placeholder="Wie heißt du?" autocomplete="off" maxlength="20">
+      <button id="onboard-next-1" class="btn btn-green" style="font-size:16px;padding:15px;">Weiter →</button>
+    </div>
+
+    <!-- Step 2: Tagesziel -->
+    <div class="onboard-step" id="ob-step-2">
+      <span class="onboard-emoji">🎯</span>
+      <h1 class="onboard-title">Dein Tagesziel</h1>
+      <p class="onboard-sub">Wie viel willst du täglich lernen?<br>Du kannst das jederzeit ändern.</p>
+      <div class="goal-options">
+        <button class="goal-option" onclick="obSelectGoal(15,this)">
+          <div class="goal-option-title">😌 Entspannt — 15 XP</div>
+          <div class="goal-option-sub">~1 Aufgabe täglich · ca. 10 Minuten</div>
+        </button>
+        <button class="goal-option selected" onclick="obSelectGoal(30,this)">
+          <div class="goal-option-title">🔥 Konsequent — 30 XP</div>
+          <div class="goal-option-sub">~2 Aufgaben täglich · ca. 20 Minuten</div>
+        </button>
+        <button class="goal-option" onclick="obSelectGoal(45,this)">
+          <div class="goal-option-title">⚡ Intensiv — 45 XP</div>
+          <div class="goal-option-sub">~3 Aufgaben täglich · ca. 30 Minuten</div>
+        </button>
+      </div>
+      <button id="onboard-next-2" class="btn btn-green" style="font-size:16px;padding:15px;">Weiter →</button>
+    </div>
+
+    <!-- Step 3: Bereit -->
+    <div class="onboard-step" id="ob-step-3">
+      <span class="onboard-emoji">🚀</span>
+      <h1 class="onboard-title" id="ob-ready-title">Los geht's!</h1>
+      <p class="onboard-sub">Dein Lernplan ist bereit.<br>Starte jetzt mit Woche 1.</p>
+      <div style="background:var(--green-d2);border:1px solid rgba(57,217,138,0.2);border-radius:var(--r2);padding:16px;margin-bottom:20px;text-align:left;">
+        <div style="font-size:13px;color:var(--green);font-weight:800;margin-bottom:8px;">🤖 Woche 1 · Was ist KI überhaupt?</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.7;">LLMs verstehen · Claude testen · Tokens &amp; Kontext · Halluzinationen entdecken · Prompts vergleichen</div>
+        <div style="margin-top:10px;font-size:12px;color:var(--green);font-weight:700;" id="ob-goal-preview"></div>
+      </div>
+      <button id="onboard-start" class="btn btn-green" style="font-size:16px;padding:15px;">Jetzt starten 🚀</button>
+    </div>
+
   </div>
 </div>
 
@@ -41,6 +79,33 @@
     <div class="ach-toast-body">
       <div class="ach-title"></div>
       <div class="ach-desc"></div>
+    </div>
+  </div>
+
+  <!-- MILESTONE MODAL -->
+  <div id="milestone-modal" class="milestone-modal" onclick="if(event.target===this)closeMilestone()">
+    <div class="milestone-inner">
+      <span class="ms-emoji" id="ms-emoji">⭐</span>
+      <div class="ms-title" id="ms-title">Woche abgeschlossen!</div>
+      <div class="ms-sub" id="ms-sub">Alle Aufgaben erledigt</div>
+      <div class="ms-stats">
+        <div class="ms-stat">
+          <div class="ms-stat-val" id="ms-xp" style="color:var(--green);">0</div>
+          <div class="ms-stat-lbl">XP verdient</div>
+        </div>
+        <div class="ms-stat">
+          <div class="ms-stat-val" id="ms-tasks" style="color:var(--orange);">0</div>
+          <div class="ms-stat-lbl">Aufgaben</div>
+        </div>
+        <div class="ms-stat">
+          <div class="ms-stat-val" id="ms-streak" style="color:var(--purple);">0</div>
+          <div class="ms-stat-lbl">Streak</div>
+        </div>
+      </div>
+      <button class="btn btn-green" id="ms-next-btn" style="margin-bottom:10px;">
+        Weiter zu Woche <span id="ms-next-num">2</span> →
+      </button>
+      <button class="btn" onclick="closeMilestone()">Schließen</button>
     </div>
   </div>
 
@@ -91,6 +156,37 @@
           <div class="streak-info-sub" id="h-streak-sub">Starte heute deinen Streak!</div>
         </div>
       </div>
+      <!-- GOAL RING -->
+      <div class="goal-ring-card" id="goal-ring-card" style="display:none;">
+        <div class="goal-ring-wrap">
+          <svg class="goal-ring-svg" width="84" height="84" viewBox="0 0 84 84">
+            <circle class="goal-ring-bg" cx="42" cy="42" r="34"/>
+            <circle class="goal-ring-fg" id="ring-fg" cx="42" cy="42" r="34"
+              stroke-dasharray="214" stroke-dashoffset="214"/>
+          </svg>
+          <div class="goal-ring-center">
+            <div class="goal-ring-xp" id="ring-xp">0</div>
+            <div class="goal-ring-unit">XP heute</div>
+          </div>
+        </div>
+        <div class="goal-ring-info">
+          <div class="goal-ring-title" id="ring-title">Tagesziel</div>
+          <div class="goal-ring-sub" id="ring-sub">0 von 0 XP heute</div>
+          <div class="goal-ring-done" id="ring-done" style="display:none;">🎉 Tagesziel erreicht!</div>
+        </div>
+      </div>
+      <!-- GOAL SETUP (wenn noch kein Ziel gesetzt) -->
+      <div id="goal-setup-card" style="display:none;margin:0 20px 16px;">
+        <div style="background:var(--green-d2);border:1px solid rgba(57,217,138,0.2);border-radius:var(--r2);padding:16px;">
+          <div style="font-size:14px;font-weight:800;color:var(--green);margin-bottom:12px;">🎯 Setze dein Tagesziel</div>
+          <div style="display:flex;gap:8px;">
+            <button onclick="setGoalFromHome(15)" class="btn" style="flex:1;padding:10px 4px;font-size:13px;flex-direction:column;gap:2px;">😌<br><span style="font-size:11px;">15 XP</span></button>
+            <button onclick="setGoalFromHome(30)" class="btn btn-green" style="flex:1;padding:10px 4px;font-size:13px;flex-direction:column;gap:2px;">🔥<br><span style="font-size:11px;">30 XP</span></button>
+            <button onclick="setGoalFromHome(45)" class="btn" style="flex:1;padding:10px 4px;font-size:13px;flex-direction:column;gap:2px;">⚡<br><span style="font-size:11px;">45 XP</span></button>
+          </div>
+        </div>
+      </div>
+
       <div class="section-label">Heute · Deine Aufgaben</div>
       <div class="today-card">
         <div class="today-card-header">
@@ -167,6 +263,8 @@
         <div class="profile-level" id="p-level">Level 1 · Neuling</div>
         <div id="p-xp" style="font-size:13px;color:var(--text3);font-weight:700;margin-top:4px;">0 XP</div>
       </div>
+      <div class="section-label">Aktivitäts-Kalender</div>
+      <div id="streak-cal-wrap" class="streak-cal-wrap"></div>
       <div class="section-label">Achievements</div>
       <div class="achievements-grid" id="p-achievements"></div>
       <div style="padding:20px 20px 0;">
@@ -237,6 +335,42 @@ function buyShieldUI() {
   UI.showToast('Streak-Schutz aktiviert!', '🛡️');
   UI.renderProfile();
   UI.renderHome();
+}
+
+// ── Onboarding Steps ─────────────────────────────────────────────
+let _obGoal = 30;
+function obSelectGoal(n, btn) {
+  _obGoal = n;
+  document.querySelectorAll('.goal-option').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+}
+function obNext1() {
+  const name = document.getElementById('onboard-name').value.trim();
+  if (!name) { document.getElementById('onboard-name').focus(); return; }
+  State.setUsername(name);
+  document.getElementById('ob-step-1').classList.remove('active');
+  document.getElementById('ob-step-2').classList.add('active');
+}
+function obNext2() {
+  State.setDailyGoal(_obGoal);
+  document.getElementById('ob-step-2').classList.remove('active');
+  const goalLabels = { 15: '😌 Entspannt · 15 XP/Tag', 30: '🔥 Konsequent · 30 XP/Tag', 45: '⚡ Intensiv · 45 XP/Tag' };
+  const t = document.getElementById('ob-ready-title');
+  if (t) t.textContent = 'Bereit, ' + State.getAll().username + '!';
+  const p = document.getElementById('ob-goal-preview');
+  if (p) p.textContent = '🎯 Dein Ziel: ' + (goalLabels[_obGoal] || '');
+  document.getElementById('ob-step-3').classList.add('active');
+}
+
+// ── Goal Ring (Home) ─────────────────────────────────────────────
+function setGoalFromHome(n) {
+  State.setDailyGoal(n);
+  UI.renderHome();
+}
+
+// ── Milestone Modal ──────────────────────────────────────────────
+function closeMilestone() {
+  document.getElementById('milestone-modal').classList.remove('show');
 }
 </script>
 

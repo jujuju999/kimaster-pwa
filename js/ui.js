@@ -59,6 +59,19 @@ const UI = (() => {
       ? `${s.streak} Tag${s.streak !== 1 ? 'e' : ''} in Folge — weiter so!`
       : 'Starte heute deinen Streak!';
 
+    // goal ring
+    const s2 = State.getAll();
+    const ringCard = document.getElementById('goal-ring-card');
+    const setupCard = document.getElementById('goal-setup-card');
+    if (s2.dailyGoal > 0) {
+      if (ringCard) ringCard.style.display = 'flex';
+      if (setupCard) setupCard.style.display = 'none';
+      updateGoalRing();
+    } else {
+      if (ringCard) ringCard.style.display = 'none';
+      if (setupCard) setupCard.style.display = 'block';
+    }
+
     // today tasks
     renderTodayCard();
   }
@@ -88,6 +101,12 @@ const UI = (() => {
           const rect = row.getBoundingClientRect();
           xpPop(task.xp, rect.right - 60, rect.top);
           if (State.getAll().done.length % 5 === 0) confetti();
+          updateGoalRing();
+          // Woche abgeschlossen?
+          const wi = State.getAll().currentWeek;
+          if (State.getDoneCount(wi) === State.getTotalCount(wi)) {
+            if (State.markWeekComplete(wi)) setTimeout(() => showMilestone(wi), 700);
+          }
         } else {
           check.classList.remove('done');
           txt.classList.remove('done');
@@ -177,11 +196,16 @@ const UI = (() => {
         if (rows[ti]) {
           rows[ti].addEventListener('click', (e) => {
             State.toggleTask(task);
+            const wasDone = State.isTaskDone(task.id);
             renderWeekContent(wi);
             updateSidebar();
-            if (State.isTaskDone(task.id)) {
+            if (wasDone) {
               const rect = rows[ti].getBoundingClientRect();
               xpPop(task.xp, rect.right - 60, rect.top);
+              updateGoalRing();
+              if (State.getDoneCount(wi) === State.getTotalCount(wi)) {
+                if (State.markWeekComplete(wi)) setTimeout(() => showMilestone(wi), 700);
+              }
             }
           });
         }
@@ -259,6 +283,97 @@ const UI = (() => {
     updateSidebar();
   }
 
+  // ─── GOAL RING ───
+  function updateGoalRing() {
+    const s = State.getAll();
+    if (!s.dailyGoal) return;
+    const prog = State.getTodayProgress();
+    const circumference = 214;
+    const offset = circumference * (1 - prog.pct);
+    const fg = document.getElementById('ring-fg');
+    if (fg) { fg.style.strokeDashoffset = offset; fg.className = 'goal-ring-fg' + (prog.pct >= 1 ? ' done' : ''); }
+    const xpEl = document.getElementById('ring-xp');
+    if (xpEl) { xpEl.textContent = prog.xp; xpEl.className = 'goal-ring-xp' + (prog.pct >= 1 ? ' done' : ''); }
+    const labels = { 15: '😌 Entspannt', 30: '🔥 Konsequent', 45: '⚡ Intensiv' };
+    const titleEl = document.getElementById('ring-title');
+    if (titleEl) titleEl.textContent = labels[s.dailyGoal] || 'Tagesziel';
+    const subEl = document.getElementById('ring-sub');
+    const doneEl = document.getElementById('ring-done');
+    if (prog.pct >= 1) {
+      if (subEl) subEl.style.display = 'none';
+      if (doneEl) doneEl.style.display = 'block';
+    } else {
+      if (subEl) { subEl.style.display = ''; subEl.textContent = `${prog.xp} von ${s.dailyGoal} XP heute`; }
+      if (doneEl) doneEl.style.display = 'none';
+    }
+  }
+
+  // ─── STREAK KALENDER ───
+  function renderStreakCal() {
+    const wrap = document.getElementById('streak-cal-wrap');
+    if (!wrap) return;
+    const s = State.getAll();
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const weekdays = ['Mo','Di','Mi','Do','Fr','Sa','So'];
+    // Startpunkt: Montag der aktuellen Woche vor 4 Wochen (28 Tage)
+    const cells = [];
+    for (let i = 27; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      const isToday = dateStr === todayStr;
+      const hist = s.loginHistory.find(h => h.date === dateStr);
+      const xp = isToday ? s.todayXP : (hist ? hist.xp : 0);
+      let cls = 'cal-cell';
+      if (xp > 0 && xp <= 15) cls += ' c1';
+      else if (xp > 15 && xp <= 30) cls += ' c2';
+      else if (xp > 30) cls += ' c3';
+      if (isToday) cls += ' cal-today';
+      cells.push(`<div class="${cls}" title="${xp} XP"></div>`);
+    }
+    wrap.innerHTML = `
+      <div class="streak-cal-label">📅 28-Tage-Aktivität</div>
+      <div class="cal-weekdays">${weekdays.map(d => `<div class="cal-wd">${d}</div>`).join('')}</div>
+      <div class="cal-grid">${cells.join('')}</div>
+      <div class="cal-legend">
+        <span>Weniger</span>
+        <div class="cal-legend-cell" style="background:var(--bg3);"></div>
+        <div class="cal-legend-cell cal-cell c1"></div>
+        <div class="cal-legend-cell cal-cell c2"></div>
+        <div class="cal-legend-cell cal-cell c3"></div>
+        <span>Mehr XP</span>
+      </div>`;
+  }
+
+  // ─── MILESTONE MODAL ───
+  function showMilestone(wi) {
+    const w = DATA.weeks[wi];
+    const s = State.getAll();
+    const tasks = w.days.reduce((acc, d) => [...acc, ...d.tasks], []);
+    const doneCount = tasks.filter(t => s.done.includes(t.id)).length;
+    const weekXP = tasks.filter(t => s.done.includes(t.id)).reduce((sum, t) => sum + t.xp, 0);
+    document.getElementById('ms-emoji').textContent = w.emoji;
+    document.getElementById('ms-title').textContent = w.title + ' abgeschlossen!';
+    document.getElementById('ms-sub').textContent = w.subtitle;
+    document.getElementById('ms-xp').textContent = weekXP;
+    document.getElementById('ms-tasks').textContent = doneCount + '/' + tasks.length;
+    document.getElementById('ms-streak').textContent = s.streak;
+    const nextWeek = DATA.weeks[wi + 1];
+    const nextBtn = document.getElementById('ms-next-btn');
+    if (nextBtn) {
+      if (nextWeek) {
+        document.getElementById('ms-next-num').textContent = wi + 2;
+        nextBtn.style.display = '';
+        nextBtn.onclick = () => { State.setCurrentWeek(wi + 1); closeMilestone(); App.navigate('weeks'); };
+      } else {
+        nextBtn.style.display = 'none';
+      }
+    }
+    document.getElementById('milestone-modal').classList.add('show');
+    confetti();
+  }
+
   // ─── RENDER PROFILE ───
   function renderProfile() {
     const s = State.getAll();
@@ -278,6 +393,7 @@ const UI = (() => {
       buyBtn.textContent = s.shields >= 3 ? '🛡️ Maximum (3/3)' : `🛡️ Streak-Schutz kaufen — 100 XP`;
     }
 
+    renderStreakCal();
     const grid = document.getElementById('p-achievements');
     grid.innerHTML = DATA.achievements.map(ach => {
       const unlocked = s.achievements.includes(ach.id);
@@ -318,5 +434,5 @@ const UI = (() => {
     setTimeout(() => el.classList.remove('show'), 4000);
   }
 
-  return { renderHome, renderWeeks, renderQuiz, renderProfile, switchWeek, toggleDay, answerQ, xpPop, confetti, showToast };
+  return { renderHome, renderWeeks, renderQuiz, renderProfile, switchWeek, toggleDay, answerQ, xpPop, confetti, showToast, showMilestone, updateGoalRing };
 })();

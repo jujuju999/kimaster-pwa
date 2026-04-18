@@ -13,7 +13,12 @@ const State = (() => {
     theme: 'dark',
     username: 'Lernender',
     shields: 1,
-    streak_protected: false
+    streak_protected: false,
+    dailyGoal: 0,
+    todayXP: 0,
+    todayDate: '',
+    loginHistory: [],
+    completedWeeks: []
   };
 
   let state = { ...defaults };
@@ -23,8 +28,18 @@ const State = (() => {
     try {
       const saved = localStorage.getItem(KEY);
       if (saved) state = { ...defaults, ...JSON.parse(saved) };
-      // Grant 1 free shield to existing users upgrading
       if (state.shields === undefined) state.shields = 1;
+      if (!state.loginHistory) state.loginHistory = [];
+      if (!state.completedWeeks) state.completedWeeks = [];
+      // Daily XP reset
+      const today = new Date().toISOString().split('T')[0];
+      if (state.todayDate !== today) {
+        if (state.todayDate && state.todayXP > 0) {
+          state.loginHistory = [{ date: state.todayDate, xp: state.todayXP }, ...state.loginHistory].slice(0, 90);
+        }
+        state.todayXP = 0;
+        state.todayDate = today;
+      }
       checkStreak();
     } catch(e) { state = { ...defaults }; }
   }
@@ -71,6 +86,32 @@ const State = (() => {
     return v;
   }
 
+  function setDailyGoal(n) { state.dailyGoal = n; save(); }
+
+  function getTodayProgress() {
+    const pct = state.dailyGoal > 0 ? Math.min(state.todayXP / state.dailyGoal, 1) : 0;
+    return { xp: state.todayXP, goal: state.dailyGoal, pct };
+  }
+
+  function markWeekComplete(wi) {
+    if (state.completedWeeks.includes(wi)) return false;
+    state.completedWeeks.push(wi);
+    save();
+    return true;
+  }
+
+  function syncCompletedWeeks() {
+    if (typeof DATA === 'undefined' || !DATA.weeks) return;
+    DATA.weeks.forEach((w, wi) => {
+      const total = w.days.reduce((s, d) => s + d.tasks.length, 0);
+      const done  = w.days.reduce((s, d) => s + d.tasks.filter(t => state.done.includes(t.id)).length, 0);
+      if (done === total && total > 0 && !state.completedWeeks.includes(wi)) {
+        state.completedWeeks.push(wi);
+      }
+    });
+    save();
+  }
+
   function isTaskDone(id) { return state.done.includes(id); }
 
   function toggleTask(task) {
@@ -81,7 +122,9 @@ const State = (() => {
     } else {
       state.done.push(task.id);
       const mult = state.streak >= 7 ? DATA.meta.streakBonus : 1;
-      state.xp += Math.round(task.xp * mult);
+      const earned = Math.round(task.xp * mult);
+      state.xp += earned;
+      state.todayXP += earned;
       checkAchievements(task);
     }
     save();
@@ -168,7 +211,7 @@ const State = (() => {
   function getAll() { return { ...state }; }
 
   load();
-  return { isTaskDone, toggleTask, getLevel, getTodayTasks, getDoneCount, getTotalCount, answerQuiz, resetQuiz, setUsername, setCurrentWeek, getAll, save, checkAchievements, buyShield, consumeShieldToast };
+  return { isTaskDone, toggleTask, getLevel, getTodayTasks, getDoneCount, getTotalCount, answerQuiz, resetQuiz, setUsername, setCurrentWeek, getAll, save, checkAchievements, buyShield, consumeShieldToast, setDailyGoal, getTodayProgress, markWeekComplete, syncCompletedWeeks };
 })();
 
 function showAchievement(ach) {
