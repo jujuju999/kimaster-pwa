@@ -1,4 +1,4 @@
-const CACHE = 'kimastery-v3';
+const CACHE = 'kimastery-v4';
 const BASE = '/kimaster-pwa';
 
 const ASSETS = [
